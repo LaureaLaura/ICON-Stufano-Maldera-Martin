@@ -534,18 +534,106 @@ print("Average Recall:", np.mean(recall_scores))
 print("Average F1-score:", np.mean(f1_scores))
 print ("+------------------------------------------------------------------------------------------+")
 
+#############################################################################################################
+#%%%REGRESSIONE LOGISTICA 
 
-fold_numbers = np.arange(1, len(accuracy_scores) + 1)
-plt.plot(fold_numbers, f1_scores, label='F1-score')
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.impute import SimpleImputer
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from imblearn.over_sampling import SMOTE
+from sklearn.metrics import (precision_score, recall_score, f1_score, 
+                             accuracy_score, confusion_matrix, classification_report)
 
-plt.xlabel('Fold')
-plt.ylabel('Score')
-plt.title('Media F1 con Random Forest Classifier')
-plt.legend()
-plt.grid(True)
+# Carica il tuo dataset in un DataFrame
+# dataset = pd.read_csv('your_dataset.csv')  # Sostituisci con il tuo dataset
+
+# Assumendo che 'dataset' sia il tuo DataFrame e 'diagnosis' sia la tua variabile target
+X = dataset.drop('diagnosis', axis=1)
+y = dataset['diagnosis']
+
+# Suddividi il dataset
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, stratify=y, random_state=42)
+
+# Inizializza l'imputer e gestisci i valori mancanti
+imputer = SimpleImputer(strategy='mean')
+X_train_imputed = imputer.fit_transform(X_train)
+X_test_imputed = imputer.transform(X_test)  # Imputa il set di test
+
+# Applica SMOTE
+smote = SMOTE(random_state=42)
+X_train_resampled, y_train_resampled = smote.fit_resample(X_train_imputed, y_train)
+
+# Allena il modello di regressione logistica
+log_reg_resampled = LogisticRegression(penalty='l1', solver='liblinear', max_iter=1000)
+log_reg_resampled.fit(X_train_resampled, y_train_resampled)
+
+# Effettua previsioni sul set di test
+y_pred_resampled = log_reg_resampled.predict(X_test_imputed)
+
+# Calcola le metriche di valutazione
+precision_resampled = precision_score(y_test, y_pred_resampled, pos_label='M')  # Usare 'M' come etichetta positiva
+recall_resampled = recall_score(y_test, y_pred_resampled, pos_label='M')
+f1_resampled = f1_score(y_test, y_pred_resampled, pos_label='M')
+accuracy_resampled = accuracy_score(y_test, y_pred_resampled)
+conf_matrix_resampled = confusion_matrix(y_test, y_pred_resampled, labels=['B', 'M'])  # Specifica le etichette
+
+# Stampa i risultati
+print("Precision:", precision_resampled)
+print("Recall:", recall_resampled)
+print("F1 Score:", f1_resampled)
+print("Accuracy:", accuracy_resampled)
+print('\n')
+print("Confusion Matrix:\n", conf_matrix_resampled)
+
+# Visualizza la matrice di confusione
+plt.figure(figsize=(8, 6))
+sns.heatmap(conf_matrix_resampled, annot=True, fmt='d', cmap='Purples', xticklabels=['Cancro No', 'Cancro Si'],
+            yticklabels=['maligno', 'benigno'])
+plt.title('Matrice di Confusione per la Regressione Logistica con SMOTE')
+plt.xlabel('Classe Predetta')
+plt.ylabel('Classe Reale')
 plt.show()
 
+# Report di classificazione
+report_resampled = classification_report(y_test, y_pred_resampled, target_names=['Cancro No', 'Cancro Si'])
+print("Classification Report per la Regressione Logistica con SMOTE:\n")
+print(report_resampled)
+
+### MATRICE DI CONFUSIONE SENZA SMOTE
+
+log_reg = LogisticRegression(penalty='l1', solver='liblinear', max_iter=1000)
+log_reg.fit(X_train_imputed, y_train)
+y_pred = log_reg.predict(X_test_imputed)
+
+precision = precision_score(y_test, y_pred, pos_label='M')
+recall = recall_score(y_test, y_pred, pos_label='M')
+f1 = f1_score(y_test, y_pred, pos_label='M')
+accuracy = accuracy_score(y_test, y_pred)
+conf_matrix = confusion_matrix(y_test, y_pred, labels=['B', 'M'])
+
+print('\n\n')
+print(f'Accuratezza senza SMOTE: {accuracy:.4f}\n')
+plt.figure(figsize=(8, 6))
+sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Purples', xticklabels=['benigno', 'maligno'],
+            yticklabels=['benigno', 'maligno'])
+plt.title('Matrice di Confusione per la Regressione Logistica senza SMOTE')
+plt.xlabel('Classe Predetta')
+plt.ylabel('Classe Reale')
+plt.show()
+
+report = classification_report(y_test, y_pred, target_names=['benigno', 'maligno'])
+print("Classification Report per la Regressione Logistica senza SMOTE:\n")
+print(report)
+
+########################################################################################################################
 #%%% Rete Bayesiana %%%
+
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 # Rete Bayesiana
 import pandas as pd
 import numpy as np
@@ -555,47 +643,67 @@ from pgmpy.estimators import HillClimbSearch, K2Score, BayesianEstimator
 from pgmpy.models import BayesianModel, BayesianNetwork
 from pgmpy.inference import VariableElimination
 from networkx.drawing.nx_agraph import graphviz_layout
+from sklearn.impute import KNNImputer
 
-# Carica il dataset
-dataset = pd.read_csv("dataset.csv")
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from pgmpy.estimators import K2Score, HillClimbSearch
 
-# Prendi un campione casuale dello 0.5% dei dati
-dataset_reduced = dataset.sample(frac=0.005, random_state=42)
-df_RBayes = dataset_reduced.copy()
 
-# Rimuovi la colonna "id" e mappa la variabile 'diagnosis'
-df_RBayes = df_RBayes.drop("id", axis=1)
-df_RBayes['diagnosis'] = df_RBayes['diagnosis'].map({'B': 0, 'M': 1})
 
-# Funzione per convertire le colonne float in interi, ma con arrotondamento
-def converti_float_in_interi(dataset):
-    for colonna in dataset.columns:
-        if dataset[colonna].dtype == 'float64':
-            dataset[colonna] = dataset[colonna].round(0).astype(int)
-    return dataset
+# %%% RETE BAYESIANA
 
-# Converti le colonne float in int dove applicabile sul campione ridotto
-df_RBayes = converti_float_in_interi(df_RBayes)
+import pandas as pd
+from sklearn.impute import KNNImputer
+import matplotlib.pyplot as plt
+import networkx as nx
+from pgmpy.estimators import HillClimbSearch, K2Score, BayesianEstimator
+from pgmpy.models import BayesianNetwork
+from pgmpy.inference import VariableElimination
 
-# Ricerca del modello con HillClimbSearch
-k2 = K2Score(df_RBayes)
-hc_k2 = HillClimbSearch(df_RBayes)
+# Inizializzazione dell'imputer KNN
+knn_imputer = KNNImputer(n_neighbors=5)
 
-# Stima del miglior modello di rete bayesiana
-modello_k2 = hc_k2.estimate(scoring_method=k2)
+# Leggere un file CSV chiamato 'dataset.csv'
+dataset_rete = pd.read_csv('dataset.csv')
 
-# Creazione della rete bayesiana basata sugli archi stimati
-rete_bayesiana = BayesianNetwork(modello_k2.edges())
+# Visualizzare le prime righe del dataset
+print(dataset_rete.head())
 
-# Fit della rete bayesiana
-rete_bayesiana.fit(df_RBayes, n_jobs=1)
+# Mappatura della colonna 'diagnosis' (B -> 0, M -> 1)
+dataset_rete['diagnosis'] = dataset_rete['diagnosis'].map({'B': 0, 'M': 1})
 
-# Stampa i nomi dei nodi
+# Imputazione dei valori mancanti utilizzando KNNImputer
+dataset_rete_imputed = pd.DataFrame(knn_imputer.fit_transform(dataset_rete), columns=dataset_rete.columns)
+
+# Conversione dei dati imputati a interi, se applicabile
+for col in dataset_rete_imputed.columns:
+    try:
+        dataset_rete_imputed[col] = dataset_rete_imputed[col].astype(int)
+    except ValueError:
+        print(f"Impossibile convertire la colonna {col} in int, potrebbe contenere valori non numerici.")
+
+# Creazione di una copia del dataframe per la rete bayesiana
+df_RBayes = dataset_rete_imputed.copy()
+
+# Controllo se ci sono valori nulli e tipi di dati
+print(df_RBayes.isnull().sum())
+print(df_RBayes.dtypes)
+
+# Parametri per l'algoritmo Hill Climbing
+max_parents = 2
+hc_k2_simplified = HillClimbSearch(df_RBayes)
+modello_k2_simplified = hc_k2_simplified.estimate(scoring_method=K2Score(df_RBayes), max_indegree=max_parents, max_iter=1000)
+
+# Creazione della rete bayesiana
+rete_bayesiana = BayesianNetwork(modello_k2_simplified.edges())
+rete_bayesiana.fit(df_RBayes)
+
+# Visualizzare i nodi e gli archi della rete bayesiana
 print("Nodi della rete bayesiana:")
 for node in rete_bayesiana.nodes():
     print(node)
 
-# Stampa degli archi nella rete bayesiana
 print("\nArchi nella rete bayesiana:")
 for edge in rete_bayesiana.edges():
     print(edge)
@@ -606,23 +714,17 @@ def visualizza_rete_bayesiana(nodi, archi):
     grafo.add_nodes_from(nodi)
     grafo.add_edges_from(archi)
 
-    plt.figure(figsize=(15, 10))
-    
-    try:
-        pos = graphviz_layout(grafo, prog='dot')
-    except:
-        print("Attenzione: pygraphviz o pydot non è installato. Usa un layout alternativo.")
-        pos = nx.spring_layout(grafo, seed=42)
+    plt.figure(figsize=(10, 8))
+    pos = nx.spring_layout(grafo)  # Utilizza il layout spring
+    node_colors = ['red' if node == nodi[0] else 'lightblue' for node in nodi]    
+    nx.draw_networkx(grafo, pos, node_color=node_colors, node_size=500, alpha=0.8, arrows=True, arrowstyle='->', arrowsize=10, font_size=10, font_family='sans-serif')
 
-    nx.draw_networkx(grafo, pos, node_color='lightblue', node_size=3000, alpha=0.9, 
-                     arrows=True, arrowstyle='->', arrowsize=20, font_size=12, 
-                     font_family='sans-serif', edge_color='gray', font_color='black')
-
-    plt.title("Rete Bayesiana", fontsize=16)
+    plt.title("Rete Bayesiana")
     plt.axis('off')
     plt.show()
 
-# Visualizza la rete bayesiana
+
+# Definizione dei nodi e degli archi della rete bayesiana
 nodi = ['diagnosis', 'concavity_mean', 'radius_mean', 'compactness_se', 'symmetry_mean', 'perimeter_mean',
          'texture_se', 'fractal_dimension_se', 'compactness_worst', 'concavity_se', 'concave points_se',
          'concavity_worst', 'perimeter_se', 'area_worst', 'compactness_mean', 'fractal_dimension_mean',
@@ -630,22 +732,42 @@ nodi = ['diagnosis', 'concavity_mean', 'radius_mean', 'compactness_se', 'symmetr
          'radius_worst', 'symmetry_worst', 'smoothness_se', 'symmetry_se', 'perimeter_worst', 'texture_worst',
          'smoothness_worst', 'texture_mean', 'fractal_dimension_worst', 'radius_se']
 
-archi = [('diagnosis', 'concavity_mean'), ('concavity_mean', 'concavity_se'), ('concavity_mean', 'concave points_se'), ('concavity_mean', 'concavity_worst'), ('radius_mean', 'compactness_se'), ('radius_mean', 'symmetry_mean'), ('compactness_se', 'area_se'), ('compactness_se', 'area_mean'), ('perimeter_mean', 'texture_se'), ('perimeter_mean', 'fractal_dimension_se'), ('perimeter_mean', 'compactness_worst'), ('concavity_se', 'concave points_worst'), ('concave points_se', 'concave points_mean'), ('concave points_se', 'smoothness_mean'), ('concavity_worst', 'perimeter_worst'), ('concavity_worst', 'radius_worst'), ('perimeter_se', 'area_worst'), ('perimeter_se', 'compactness_mean'), ('perimeter_se', 'fractal_dimension_mean'), ('area_worst', 'fractal_dimension_worst'), ('area_worst', 'texture_worst'), ('area_worst', 'radius_se'), ('radius_worst', 'symmetry_worst'), ('radius_worst', 'perimeter_se'), ('radius_worst', 'smoothness_se'), ('radius_worst', 'symmetry_se'), ('radius_worst', 'perimeter_worst'), ('symmetry_worst', 'radius_mean'), ('perimeter_worst', 'smoothness_mean'), ('texture_worst', 'smoothness_worst'), ('texture_worst', 'texture_mean'), ('smoothness_worst', 'perimeter_mean')]
+archi = [('diagnosis', 'concavity_mean'), ('concavity_mean', 'concavity_se'), ('concavity_mean', 'concave points_se'),
+         ('concavity_mean', 'concavity_worst'), ('radius_mean', 'compactness_se'), ('radius_mean', 'symmetry_mean'),
+         ('compactness_se', 'area_se'), ('compactness_se', 'area_mean'), ('perimeter_mean', 'texture_se'),
+         ('perimeter_mean', 'fractal_dimension_se'), ('perimeter_mean', 'compactness_worst'), ('concavity_se', 'concave points_worst'),
+         ('concave points_se', 'concave points_mean'), ('concave points_se', 'smoothness_mean'), ('concavity_worst', 'perimeter_worst'),
+         ('concavity_worst', 'radius_worst'), ('perimeter_se', 'area_worst'), ('perimeter_se', 'compactness_mean'),
+         ('perimeter_se', 'fractal_dimension_mean'), ('area_worst', 'fractal_dimension_worst'), ('area_worst', 'texture_worst'),
+         ('area_worst', 'radius_se'), ('radius_worst', 'symmetry_worst'), ('radius_worst', 'perimeter_se'),
+         ('radius_worst', 'smoothness_se'), ('radius_worst', 'symmetry_se'), ('radius_worst', 'perimeter_worst'),
+         ('symmetry_worst', 'radius_mean'), ('perimeter_worst', 'smoothness_mean'), ('texture_worst', 'smoothness_worst'),
+         ('texture_worst', 'texture_mean'), ('smoothness_worst', 'perimeter_mean')]
 
-# Chiamata alla funzione per visualizzare il grafico
+# Visualizzare la rete bayesiana
 visualizza_rete_bayesiana(nodi, archi)
 
+# Creazione del modello bayesiano
+modello_bayesiano = BayesianNetwork(archi)
 
-# Aggiungi le variabili al modello
-modello_bayesiano = BayesianModel(rete_bayesiana.edges())
+# Aggiungere i nodi del dataset al modello (escludendo la colonna target)
+for column in dataset_rete.columns:
+    if column != 'Dx:Cancer':  # Assumendo che 'Dx:Cancer' sia la colonna target
+        modello_bayesiano.add_node(column)
 
-# Aggiorna il modello con le nuove CPD usando il campione ridotto
-modello_bayesiano.fit(df_RBayes, estimator=BayesianEstimator, prior_type='BDeu', equivalent_sample_size=10)
+# Stima delle CPDs (Conditional Probability Distributions) utilizzando BayesianEstimator
+bayes_estimator = BayesianEstimator(modello_bayesiano, df_RBayes)
 
-# Esempio di inferenza sulla rete bayesiana
+cpds = [bayes_estimator.estimate_cpd(variable) for variable in modello_bayesiano.nodes()]
+
+# Aggiungere CPDs al modello bayesiano
+for cpd in cpds:
+    modello_bayesiano.add_cpds(cpd)
+
+# Inferenza con Variable Elimination
 inferenza = VariableElimination(modello_bayesiano)
 
-# Stampa i valori limite (massimo e minimo) per ogni variabile del modello
+# Stampa dei valori limite per ogni variabile
 for variable in modello_bayesiano.nodes():
     cpd = modello_bayesiano.get_cpds(variable)
     min_value = cpd.values.min()
@@ -654,6 +776,7 @@ for variable in modello_bayesiano.nodes():
     print(f"Minimo: {min_value}")
     print(f"Massimo: {max_value}")
     print("\n")
+
 
 # Controllo se smoothness_mean è nel modello
 if 'smoothness_mean' not in modello_bayesiano.nodes():
@@ -730,5 +853,14 @@ benigno = inferenza.query(variables=['diagnosis'], evidence={
     'fractal_dimension_worst': 0.08579
 })
 
+img = mpimg.imread(r"C:\Users\elisa\Desktop\ICON-Stufano-Maldera-Martin-main\Immagine1.jpg")  # Puoi usare anche '\\' o '/' qui
+
+plt.imshow(img)
+plt.axis('off')  
+plt.show()
+
 print('\nProbabilità per una donna di avere un tumore benigno al seno: ')
 print(benigno, '\n\n')
+
+
+
