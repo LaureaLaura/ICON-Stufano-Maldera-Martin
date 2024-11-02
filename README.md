@@ -22,10 +22,9 @@ Il progetto si concentra sullo sviluppo di un modello di machine learning in gra
 
 *   Raccogliere ed esplorare il dataset relativo al cancro al seno
     
-*   Pulizia dei dati e ingegneria delle feature
+*   Pulizia e standardizzazione dei dati
     
-*   Implementazione di vari algoritmi di machine learning (es: Random Forest, Support Vector Machine, Neural Network)
+*   Implementazione di vari algoritmi di machine learning (Random Forest, SVM, Decision Tree, Logistic Regression, K-Kneighbours, K-Medoids)
     
 *   Valutazione del modello per selezionare la migliore soluzione in termini di accuratezza e precisione
     
-*   Creazione di un'interfaccia user-friendly per la predizione
