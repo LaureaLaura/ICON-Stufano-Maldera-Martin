@@ -16,7 +16,7 @@ Team
 Descrizione del Progetto
 ------------------------
 
-Il progetto si concentra sullo sviluppo di un modello di machine learning in grado di analizzare dati medici e predire la probabilità che un tumore al seno sia maligno o benigno. Il modello è stato addestrato su un dataset con informazioni chiave e variabili cliniche che permettono una valutazione accurata della natura del tumore.
+Il progetto si concentra sullo sviluppo di un modello di machine learning in grado di analizzare dati medici e predire la probabilità che un tumore al seno sia maligno o benigno. Il modello è stato addestrato su un dataset con informazioni chiave e variabili cliniche che permettono una predizione della natura del tumore.
 
 ### Obiettivi
 
